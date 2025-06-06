@@ -68,14 +68,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message:
         await update.message.reply_text(reply)
 
-if BOT_TOKEN is None:
-    raise ValueError("BOT_TOKEN environment variable not set.")
+if __name__ == '__main__':
+    if BOT_TOKEN is None:
+        raise ValueError("BOT_TOKEN environment variable not set.")
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(handle_button))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,
-                               handle_message))
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(handle_button))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                   handle_message))
 
-print("Бот запущен...")
-app.run_polling()
+    print("Бот запущен...")
+    try:
+        app.run_polling()
+    except Exception as e:
+        print(f"Ошибка при запуске бота: {e}")
