@@ -1,9 +1,9 @@
-run = "nix-shell -p python311Packages.python-dotenv python311Packages.python-telegram-bot --run 'python3 main.py'"
+run = "nix-shell -p python311Packages.python-dotenv python311Packages.python-telegram-bot python311Packages.openai --run 'python3 main.py'"
 modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["python311Packages.python-dotenv", "python311Packages.python-telegram-bot"]
+packages = ["python311Packages.python-dotenv", "python311Packages.python-telegram-bot", "python311Packages.openai"]
 
 [deployment]
 run = ["sh", "-c", "python3 main.py"]
