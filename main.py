@@ -17,7 +17,7 @@ API_URL = "https://api.groq.com/openai/v1/chat/completions"
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Хранилище данных пользователей (в реальном проекте используйте базу данных)
+# Хранилище данных пользователей 
 user_data = {}
 
 def get_user_data(user_id):
@@ -156,7 +156,7 @@ async def handle_message(message: types.Message):
     
     # Проверяем режим диалога
     if is_dialog_mode(user_id):
-        # Режим диалога - сохраняем историю и общаемся
+        # Режим диалога
         add_to_chat_history(user_id, "user", user_text)
         response = ask_ai(user_text, user_id, is_dialog=True)
         add_to_chat_history(user_id, "assistant", response)
