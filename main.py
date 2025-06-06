@@ -2,6 +2,7 @@
 import os
 import asyncio
 import requests
+import openai
 from openai import OpenAI
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
@@ -12,11 +13,10 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = "https://api.groq.com/openai/v1"
-open.api_base = OPENAI_API_BASE
-
+openai.api_base = OPENAI_API_BASE
 
 # Инициализация OpenAI
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_API_BASE) if OPENAI_API_KEY else None
 
 # Инициализация бота и диспетчера
 bot = Bot(token=BOT_TOKEN)
@@ -48,7 +48,28 @@ async def handle_buttons(callback: types.CallbackQuery):
     await callback.message.edit_text(text)
     await callback.answer()
 
+def ask_groq(user_input):
+    try:
+        url = f"{OPENAI_API_BASE}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "mixtral-8x7b-32768",
+            "messages": [
+                {"role": "system", "content": "Ты дружелюбный Telegram-ассистент."},
+                {"role": "user", "content": user_input}
+            ],
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
 
+        response = requests.post(url, headers=headers, json=data)
+        return response.json()["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        return f"Ошибка: {str(e)}"
 
 @dp.message(F.text)
 async def handle_message(message: types.Message):
@@ -57,33 +78,11 @@ async def handle_message(message: types.Message):
 
     user_input = message.text
 
-    if not client:
+    if not OPENAI_API_KEY:
         await message.answer("❌ OpenAI не настроен. Проверьте OPENAI_API_KEY в Secrets.")
         return
 
-def ask_groq(user_input):
-    try:
-        url = f"{OPENAI_API_BASE}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        data ={
-            "model": "mixtral-8x7b-32768",
-            "messages": [
-                {"role": "system", "content": "Ты дружелюбный Telegram-ассистент."},
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=500,
-            temperature=0.7
-        }
-
-        response = requests.post(url, headers=headers, json=data
-return response.json()["choices"][0]["message"]["content"] 
-
-    except Exception as e:
-        reply = f"Ошибка: {str(e)}"
-
+    reply = ask_groq(user_input)
     await message.answer(reply)
 
 async def main():
