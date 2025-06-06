@@ -30,9 +30,13 @@ user_memory = {}
 
 # 🟢 /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print("🚀 Получена команда /start")
     if update.effective_user:
         user_id = update.effective_user.id
-        user_memory[user_id] = {"name": update.effective_user.first_name}
+        user_name = update.effective_user.first_name or "Пользователь"
+        print(f"👤 Пользователь: {user_name} (ID: {user_id})")
+        
+        user_memory[user_id] = {"name": user_name}
         keyboard = [
             [InlineKeyboardButton("💬 Задать вопрос", callback_data="ask")],
             [InlineKeyboardButton("🧠 Помощь", callback_data="help")]
@@ -43,22 +47,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"Привет, {user_memory[user_id]['name']}! Я твой Telegram GPT-ассистент.",
                 reply_markup=reply_markup)
+            print("✅ Стартовое сообщение отправлено с кнопками")
+        else:
+            print("❌ update.message отсутствует")
     else:
+        print("❌ update.effective_user отсутствует")
         return
 
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔔 handle_button вызван. Update: {update}")
     query = update.callback_query
     if query:
-        print(f"🔘 Нажата кнопка: {query.data}")
-        await query.answer()
-        if query.data == "help":
-            await query.edit_message_text(
-                "Я ассистент. Задавай любые вопросы — помогу по учебе, коду, идеям!")
-            print("✅ Показана помощь")
-        elif query.data == "ask":
-            await query.edit_message_text("Напиши свой вопрос прямо сюда 👇")
-            print("✅ Показано приглашение к вопросу")
+        print(f"🔘 Получен callback_query: {query.data}")
+        print(f"👤 От пользователя: {query.from_user.first_name if query.from_user else 'Неизвестен'}")
+        
+        try:
+            await query.answer()
+            print("✅ query.answer() выполнен")
+            
+            if query.data == "help":
+                await query.edit_message_text(
+                    "Я ассистент. Задавай любые вопросы — помогу по учебе, коду, идеям!")
+                print("✅ Показана помощь")
+            elif query.data == "ask":
+                await query.edit_message_text("Напиши свой вопрос прямо сюда 👇")
+                print("✅ Показано приглашение к вопросу")
+            else:
+                print(f"❓ Неизвестная кнопка: {query.data}")
+        except Exception as e:
+            print(f"❌ Ошибка в handle_button: {e}")
+    else:
+        print("❌ callback_query отсутствует в update")
 
 
 # 💬 Обработка обычных сообщений (как запрос в GPT)
@@ -103,25 +123,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(reply)
 
+# Обработчик для отслеживания всех обновлений
+async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"📥 Получено обновление: {type(update).__name__}")
+    if update.message:
+        print(f"📨 Сообщение: {update.message.text}")
+    if update.callback_query:
+        print(f"🔘 Callback: {update.callback_query.data}")
+
 if __name__ == '__main__':
     if BOT_TOKEN is None:
         raise ValueError("BOT_TOKEN environment variable not set.")
 
+    print(f"🤖 Инициализация бота с токеном: {BOT_TOKEN[:10]}...")
+    
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    # Добавляем обработчики
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_button))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,
-                                   handle_message))
-
-    print("Бот запущен...")
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    print("📋 Обработчики добавлены:")
+    print("  - CommandHandler для /start")
+    print("  - CallbackQueryHandler для кнопок")
+    print("  - MessageHandler для текста")
+    
+    print("🚀 Бот запущен и ожидает сообщения...")
     try:
-        app.run_polling(drop_pending_updates=True)
+        app.run_polling(drop_pending_updates=True, poll_interval=1.0, timeout=10)
     except Exception as e:
-        print(f"Ошибка при запуске бота: {e}")
+        print(f"❌ Ошибка при запуске бота: {e}")
         if "Conflict" in str(e):
-            print("Конфликт: другой экземпляр бота уже запущен.")
+            print("⚠️ Конфликт: другой экземпляр бота уже запущен.")
             print("Остановите предыдущий экземпляр и попробуйте снова.")
             exit(1)
         else:
-            print("Перезапустите бота через несколько секунд.")
+            print("🔄 Перезапустите бота через несколько секунд.")
             exit(1)
