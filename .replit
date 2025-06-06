@@ -7,15 +7,3 @@ packages = ["python311Packages.python-dotenv", "python311Packages.python-telegra
 
 [deployment]
 run = ["sh", "-c", "python3 main.py"]
-
-[workflows]
-runButton = "Запуск бота"
-
-[[workflows.workflow]]
-name = "Запуск бота"
-author = 40307194
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py"

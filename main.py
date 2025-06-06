@@ -64,9 +64,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = response.choices[0].message.content if response.choices else "Не удалось получить ответ от OpenAI."
     except Exception as e:
         reply = f"Ошибка при запросе к GPT: {e}"
-    
-    if update.message:
-        await update.message.reply_text(reply)
+        if update.message:
+            await update.message.reply_text(reply)
+        else:
+            return
 
 if BOT_TOKEN is None:
     raise ValueError("BOT_TOKEN environment variable not set.")
