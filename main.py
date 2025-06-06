@@ -20,38 +20,67 @@ dp = Dispatcher()
 # Хранилище данных пользователей (в реальном проекте используйте базу данных)
 user_data = {}
 
+def get_user_data(user_id):
+    """Получить данные пользователя"""
+    if user_id not in user_data:
+        user_data[user_id] = {"goals": [], "chat_history": [], "dialog_mode": False}
+    return user_data[user_id]
+
 def get_user_goals(user_id):
     """Получить цели пользователя"""
-    if user_id not in user_data:
-        user_data[user_id] = {"goals": []}
-    return user_data[user_id]["goals"]
+    return get_user_data(user_id)["goals"]
 
 def add_user_goal(user_id, goal):
     """Добавить цель пользователю"""
-    if user_id not in user_data:
-        user_data[user_id] = {"goals": []}
-    user_data[user_id]["goals"].append(goal)
+    get_user_data(user_id)["goals"].append(goal)
+
+def add_to_chat_history(user_id, role, message):
+    """Добавить сообщение в историю чата"""
+    history = get_user_data(user_id)["chat_history"]
+    history.append({"role": role, "content": message})
+    # Ограничиваем историю последними 10 сообщениями
+    if len(history) > 20:
+        history.pop(0)
+
+def set_dialog_mode(user_id, mode):
+    """Установить режим диалога"""
+    get_user_data(user_id)["dialog_mode"] = mode
+
+def is_dialog_mode(user_id):
+    """Проверить, включен ли режим диалога"""
+    return get_user_data(user_id)["dialog_mode"]
 
 def get_main_keyboard():
     """Основная клавиатура"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎯 Мои цели", callback_data="goals")],
-        [InlineKeyboardButton(text="📈 Добавить новую цель", callback_data="add_goal")]
+        [InlineKeyboardButton(text="📈 Добавить новую цель", callback_data="add_goal")],
+        [InlineKeyboardButton(text="💬 Диалог", callback_data="dialog")]
     ])
 
-def ask_ai(question):
+def ask_ai(question, user_id=None, is_dialog=False):
     """Запрос к ИИ"""
     try:
         headers = {
             "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
-        data = {
-            "model": "llama3-70b-8192",
-            "messages": [
+        
+        # Создаем сообщения с учетом режима
+        if is_dialog and user_id:
+            messages = [{"role": "system", "content": "Ты дружелюбный собеседник. Поддерживай разговор на любые темы, запоминай то, о чем говорили раньше."}]
+            # Добавляем историю чата
+            messages.extend(get_user_data(user_id)["chat_history"])
+            messages.append({"role": "user", "content": question})
+        else:
+            messages = [
                 {"role": "system", "content": "Ты дружелюбный помощник по достижению целей."},
                 {"role": "user", "content": question}
-            ],
+            ]
+        
+        data = {
+            "model": "llama3-70b-8192",
+            "messages": messages,
             "max_tokens": 500,
             "temperature": 0.7
         }
@@ -97,8 +126,22 @@ async def add_goal_prompt(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+@dp.callback_query(F.data == "dialog")
+async def start_dialog(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    set_dialog_mode(user_id, True)
+    await callback.message.edit_text(
+        "💬 Режим диалога активирован!\n\nТеперь мы можем обсуждать любые темы. Я буду помнить наш разговор.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back")]
+        ])
+    )
+    await callback.answer()
+
 @dp.callback_query(F.data == "back")
 async def back_to_main(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    set_dialog_mode(user_id, False)
     user_name = callback.from_user.first_name
     await callback.message.edit_text(
         f"Привет, {user_name}! 👋\n\nЯ помощник по целям. Могу помочь тебе ставить и отслеживать цели!",
@@ -111,17 +154,30 @@ async def handle_message(message: types.Message):
     user_id = message.from_user.id
     user_text = message.text
     
-    # Если сообщение начинается с определенных слов, считаем это целью
-    if any(word in user_text.lower() for word in ["хочу", "планирую", "цель", "буду", "собираюсь"]):
-        add_user_goal(user_id, user_text)
+    # Проверяем режим диалога
+    if is_dialog_mode(user_id):
+        # Режим диалога - сохраняем историю и общаемся
+        add_to_chat_history(user_id, "user", user_text)
+        response = ask_ai(user_text, user_id, is_dialog=True)
+        add_to_chat_history(user_id, "assistant", response)
+        
         await message.answer(
-            f"✅ Цель добавлена: {user_text}",
-            reply_markup=get_main_keyboard()
+            response,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="back")]
+            ])
         )
     else:
-        # Обычный вопрос к ИИ
-        response = ask_ai(user_text)
-        await message.answer(response, reply_markup=get_main_keyboard())
+        # Обычный режим
+        if any(word in user_text.lower() for word in ["хочу", "планирую", "цель", "буду", "собираюсь"]):
+            add_user_goal(user_id, user_text)
+            await message.answer(
+                f"✅ Цель добавлена: {user_text}",
+                reply_markup=get_main_keyboard()
+            )
+        else:
+            response = ask_ai(user_text)
+            await message.answer(response, reply_markup=get_main_keyboard())
 
 async def main():
     print("🤖 Бот запущен...")
