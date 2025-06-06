@@ -18,7 +18,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    user_name = update.effective_user.first_name or "Пользователь"
+    user_name = update.effective_user.first_name if update.effective_user else "Пользователь"
+    
     await update.message.reply_text(
         f"Привет, {user_name}! Я твой Telegram GPT-ассистент.",
         reply_markup=reply_markup
