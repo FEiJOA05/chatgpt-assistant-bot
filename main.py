@@ -61,7 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             model="gpt-3.5-turbo",
             messages=messages,
         )
-        reply = response.choices[0].message.content if response.choices else "Не удалось получить ответ от OpenAI."
+        reply = response.choices[0].message.content or "Не удалось получить ответ от OpenAI." if response.choices else "Не удалось получить ответ от OpenAI."
     except Exception as e:
         reply = f"Ошибка при запросе к GPT: {e}"
     
