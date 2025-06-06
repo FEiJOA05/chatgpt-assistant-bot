@@ -12,6 +12,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+        
     keyboard = [
         [InlineKeyboardButton("💬 Задать вопрос", callback_data="ask")],
         [InlineKeyboardButton("🧠 Помощь", callback_data="help")]
@@ -27,6 +30,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if not query:
+        return
+    
     await query.answer()
 
     if query.data == "help":
