@@ -10,7 +10,20 @@ import typing
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+print(f"BOT_TOKEN найден: {'Да' if BOT_TOKEN else 'Нет'}")
+print(f"OPENAI_API_KEY найден: {'Да' if OPENAI_API_KEY else 'Нет'}")
+
+if not OPENAI_API_KEY:
+    print("⚠️ OPENAI_API_KEY не найден! Бот будет работать без OpenAI.")
+    client = None
+else:
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        print("✅ OpenAI клиент инициализирован успешно")
+    except Exception as e:
+        print(f"❌ Ошибка инициализации OpenAI: {e}")
+        client = None
 
 user_memory = {}
 
@@ -37,36 +50,58 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if query:
+        print(f"🔘 Нажата кнопка: {query.data}")
         await query.answer()
         if query.data == "help":
             await query.edit_message_text(
                 "Я ассистент. Задавай любые вопросы — помогу по учебе, коду, идеям!")
+            print("✅ Показана помощь")
         elif query.data == "ask":
             await query.edit_message_text("Напиши свой вопрос прямо сюда 👇")
+            print("✅ Показано приглашение к вопросу")
 
 
 # 💬 Обработка обычных сообщений (как запрос в GPT)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        user_input = update.message.text
-    else:
-        user_input = ""
-    reply = "Произошла неизвестная ошибка."  # Default error message
+    if not update.message:
+        return
+        
+    user_input = update.message.text or ""
+    print(f"📨 Получено сообщение: {user_input[:50]}...")
+    
+    if not client:
+        reply = "❌ OpenAI не настроен. Проверьте OPENAI_API_KEY в Secrets."
+        await update.message.reply_text(reply)
+        return
+    
+    reply = "Произошла неизвестная ошибка."
+    
     try:
+        print("🔄 Отправляю запрос к OpenAI...")
         messages: list[ChatCompletionMessageParam] = typing.cast(list[ChatCompletionMessageParam], [
             ChatCompletionSystemMessageParam(role="system", content="Ты дружелюбный Telegram-ассистент."),
-            ChatCompletionUserMessageParam(role="user", content=user_input or "")
+            ChatCompletionUserMessageParam(role="user", content=user_input)
         ])
+        
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
+            max_tokens=1000,
+            temperature=0.7
         )
-        reply = response.choices[0].message.content or "Не удалось получить ответ от OpenAI." if response.choices else "Не удалось получить ответ от OpenAI."
+        
+        if response.choices and response.choices[0].message.content:
+            reply = response.choices[0].message.content
+            print("✅ Получен ответ от OpenAI")
+        else:
+            reply = "Не удалось получить ответ от OpenAI."
+            print("❌ Пустой ответ от OpenAI")
+            
     except Exception as e:
-        reply = f"Ошибка при запросе к GPT: {e}"
+        reply = f"Ошибка при запросе к GPT: {str(e)}"
+        print(f"❌ Ошибка OpenAI: {e}")
     
-    if update.message:
-        await update.message.reply_text(reply)
+    await update.message.reply_text(reply)
 
 if __name__ == '__main__':
     if BOT_TOKEN is None:
