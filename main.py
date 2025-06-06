@@ -66,7 +66,17 @@ def ask_groq(user_input):
         }
 
         response = requests.post(url, headers=headers, json=data)
-        return response.json()["choices"][0]["message"]["content"]
+        response_data = response.json()
+        
+        # Проверяем успешность запроса
+        if response.status_code != 200:
+            return f"Ошибка API: {response.status_code} - {response_data.get('error', {}).get('message', 'Неизвестная ошибка')}"
+        
+        # Проверяем наличие choices в ответе
+        if "choices" not in response_data or not response_data["choices"]:
+            return f"Ошибка: Неожиданный формат ответа API - {response_data}"
+            
+        return response_data["choices"][0]["message"]["content"]
 
     except Exception as e:
         return f"Ошибка: {str(e)}"
