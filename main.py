@@ -56,29 +56,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"🔔 handle_button вызван. Update: {update}")
+    print(f"🔔 handle_button вызван!")
+    print(f"🔍 Update объект: {update}")
+    print(f"🔍 Есть ли callback_query: {hasattr(update, 'callback_query') and update.callback_query is not None}")
+    
     query = update.callback_query
     if query:
-        print(f"🔘 Получен callback_query: {query.data}")
+        print(f"🔘 Получен callback_query с данными: '{query.data}'")
         print(f"👤 От пользователя: {query.from_user.first_name if query.from_user else 'Неизвестен'}")
+        print(f"📱 ID чата: {query.message.chat.id if query.message else 'Нет сообщения'}")
         
         try:
-            await query.answer()
+            # Обязательно отвечаем на callback query
+            await query.answer("Обрабатываю...")
             print("✅ query.answer() выполнен")
             
             if query.data == "help":
-                await query.edit_message_text(
-                    "Я ассистент. Задавай любые вопросы — помогу по учебе, коду, идеям!")
+                new_text = "🧠 Я ассистент. Задавай любые вопросы — помогу по учебе, коду, идеям!\n\nОтправь мне любое сообщение, и я отвечу."
+                await query.edit_message_text(text=new_text)
                 print("✅ Показана помощь")
             elif query.data == "ask":
-                await query.edit_message_text("Напиши свой вопрос прямо сюда 👇")
+                new_text = "💬 Напиши свой вопрос прямо сюда 👇\n\nЯ готов помочь с любыми вопросами!"
+                await query.edit_message_text(text=new_text)
                 print("✅ Показано приглашение к вопросу")
             else:
                 print(f"❓ Неизвестная кнопка: {query.data}")
+                await query.answer("Неизвестная команда")
+                
         except Exception as e:
             print(f"❌ Ошибка в handle_button: {e}")
+            print(f"❌ Тип ошибки: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
     else:
         print("❌ callback_query отсутствует в update")
+        print(f"❌ Что есть в update: {dir(update)}")
 
 
 # 💬 Обработка обычных сообщений (как запрос в GPT)
@@ -131,6 +143,15 @@ async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         print(f"🔘 Callback: {update.callback_query.data}")
 
+# Добавляем универсальный обработчик для отладки
+async def debug_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔍 DEBUG: Получено обновление типа: {type(update).__name__}")
+    if update.message:
+        print(f"📨 Сообщение: {update.message.text}")
+    if update.callback_query:
+        print(f"🔘 Callback query: {update.callback_query.data}")
+        print(f"👤 От пользователя: {update.callback_query.from_user.first_name if update.callback_query.from_user else 'Неизвестен'}")
+
 if __name__ == '__main__':
     if BOT_TOKEN is None:
         raise ValueError("BOT_TOKEN environment variable not set.")
@@ -139,15 +160,26 @@ if __name__ == '__main__':
     
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    # Добавляем обработчики
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_button))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # Добавляем обработчики в правильном порядке
+    print("📋 Добавляем обработчики...")
     
-    print("📋 Обработчики добавлены:")
-    print("  - CommandHandler для /start")
-    print("  - CallbackQueryHandler для кнопок")
-    print("  - MessageHandler для текста")
+    # 1. Обработчик команд
+    app.add_handler(CommandHandler("start", start))
+    print("  ✅ CommandHandler для /start добавлен")
+    
+    # 2. Обработчик кнопок (должен быть перед общим обработчиком сообщений)
+    callback_handler = CallbackQueryHandler(handle_button)
+    app.add_handler(callback_handler)
+    print("  ✅ CallbackQueryHandler для кнопок добавлен")
+    
+    # 3. Обработчик текстовых сообщений
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("  ✅ MessageHandler для текста добавлен")
+    
+    # 4. Универсальный обработчик для отладки (последний)
+    from telegram.ext import TypeHandler
+    app.add_handler(TypeHandler(Update, debug_handler), group=1)
+    print("  ✅ Debug handler добавлен")
     
     print("🚀 Бот запущен и ожидает сообщения...")
     try:
