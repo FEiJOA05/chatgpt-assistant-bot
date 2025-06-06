@@ -7,6 +7,8 @@ dependencies = [
     "python-dotenv",
     "python-telegram-bot",
     "openai",
+    "aiogram (>=3.20.0.post0,<4.0.0)",
+    "telegram (>=0.0.1,<0.0.2)",
 ]
 [tool.poetry]
 name = "your_project_name"

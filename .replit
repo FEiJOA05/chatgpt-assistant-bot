@@ -3,7 +3,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["python311Packages.python-dotenv", "python311Packages.python-telegram-bot", "python311Packages.openai"]
+packages = ["python311Packages.openai", "python311Packages.python-dotenv", "python311Packages.python-telegram-bot"]
 
 [deployment]
 run = ["sh", "-c", "python3 main.py"]

@@ -1,8 +1,11 @@
+
 import os
+import asyncio
 from openai import OpenAI
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -11,47 +14,45 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Инициализация OpenAI
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message:
-        return
-        
-    keyboard = [
-        [InlineKeyboardButton("💬 Задать вопрос", callback_data="ask")],
-        [InlineKeyboardButton("🧠 Помощь", callback_data="help")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+# Инициализация бота и диспетчера
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-    user_name = update.effective_user.first_name if update.effective_user else "Пользователь"
+@dp.message(Command("start"))
+async def start_command(message: types.Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💬 Задать вопрос", callback_data="ask")],
+        [InlineKeyboardButton(text="🧠 Помощь", callback_data="help")]
+    ])
     
-    await update.message.reply_text(
+    user_name = message.from_user.first_name if message.from_user else "Пользователь"
+    
+    await message.answer(
         f"Привет, {user_name}! Я твой Telegram GPT-ассистент.",
-        reply_markup=reply_markup
+        reply_markup=keyboard
     )
 
-async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    if not query:
-        return
-    
-    await query.answer()
-
-    if query.data == "help":
+@dp.callback_query(F.data.in_(["help", "ask"]))
+async def handle_buttons(callback: types.CallbackQuery):
+    if callback.data == "help":
         text = "🧠 Я ассистент. Задавай любые вопросы — помогу по учебе, коду, идеям!\n\nОтправь мне любое сообщение, и я отвечу."
-    elif query.data == "ask":
+    elif callback.data == "ask":
         text = "💬 Напиши свой вопрос прямо сюда 👇\n\nЯ готов помочь с любыми вопросами!"
     else:
         text = "Неизвестная команда"
+    
+    await callback.message.edit_text(text)
+    await callback.answer()
 
-    await query.edit_message_text(text=text)
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
+@dp.message(F.text)
+async def handle_message(message: types.Message):
+    if not message.text:
         return
 
-    user_input = update.message.text
+    user_input = message.text
 
     if not client:
-        await update.message.reply_text("❌ OpenAI не настроен. Проверьте OPENAI_API_KEY в Secrets.")
+        await message.answer("❌ OpenAI не настроен. Проверьте OPENAI_API_KEY в Secrets.")
         return
 
     try:
@@ -70,17 +71,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         reply = f"Ошибка: {str(e)}"
 
-    await update.message.reply_text(reply)
+    await message.answer(reply)
 
-if __name__ == '__main__':
+async def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN не найден в переменных окружения")
-
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_button))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
+    
     print("Бот запущен...")
-    app.run_polling(drop_pending_updates=True)
+    await dp.start_polling(bot, drop_pending_updates=True)
+
+if __name__ == '__main__':
+    asyncio.run(main())
