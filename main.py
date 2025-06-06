@@ -56,7 +56,7 @@ def ask_groq(user_input):
             "Content-Type": "application/json"
         }
         data = {
-            "model": "mixtral-8x7b-32768",
+            "model": "llama3-70b-8192",
             "messages": [
                 {"role": "system", "content": "Ты дружелюбный Telegram-ассистент."},
                 {"role": "user", "content": user_input}
