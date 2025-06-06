@@ -80,10 +80,13 @@ if __name__ == '__main__':
 
     print("Бот запущен...")
     try:
-        app.run_polling()
+        app.run_polling(drop_pending_updates=True)
     except Exception as e:
         print(f"Ошибка при запуске бота: {e}")
         if "Conflict" in str(e):
-            print("Конфликт: другой экземпляр бота уже запущен. Остановите его перед запуском нового.")
+            print("Конфликт: другой экземпляр бота уже запущен.")
+            print("Остановите предыдущий экземпляр и попробуйте снова.")
+            exit(1)
         else:
             print("Перезапустите бота через несколько секунд.")
+            exit(1)
