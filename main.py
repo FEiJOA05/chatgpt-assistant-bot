@@ -1,6 +1,7 @@
 
 import os
 import asyncio
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
@@ -10,6 +11,9 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_BASE = "https://api.groq.com/openai/v1"
+open.api_base = OPENAI_API_BASE
+
 
 # Инициализация OpenAI
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -44,6 +48,8 @@ async def handle_buttons(callback: types.CallbackQuery):
     await callback.message.edit_text(text)
     await callback.answer()
 
+
+
 @dp.message(F.text)
 async def handle_message(message: types.Message):
     if not message.text:
@@ -55,18 +61,25 @@ async def handle_message(message: types.Message):
         await message.answer("❌ OpenAI не настроен. Проверьте OPENAI_API_KEY в Secrets.")
         return
 
+def ask_groq(user_input):
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
+        url = f"{OPENAI_API_BASE}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data ={
+            "model": "mixtral-8x7b-32768",
+            "messages": [
                 {"role": "system", "content": "Ты дружелюбный Telegram-ассистент."},
                 {"role": "user", "content": user_input}
             ],
             max_tokens=500,
             temperature=0.7
-        )
+        }
 
-        reply = response.choices[0].message.content if response.choices else "Не удалось получить ответ"
+        response = requests.post(url, headers=headers, json=data
+return response.json()["choices"][0]["message"]["content"] 
 
     except Exception as e:
         reply = f"Ошибка: {str(e)}"
