@@ -1,0 +1,24 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.10,<=3.11.9"
+dependencies = [
+    "python-dotenv",
+    "telegram",
+]
+[tool.poetry]
+name = "your_project_name"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+openai = "*"
+python-dotenv = "*"
+telegram = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
